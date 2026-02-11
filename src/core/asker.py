@@ -6,6 +6,7 @@ import logging
 from ..database import DatabaseConnector, SchemaAnalyzer
 from ..llm import ClaudeClient, QwenClient
 from ..sql import SQLValidator, SQLExecutor
+from ..utils.logger import log_qa
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ class AskData:
         logger.info("Schema缓存已刷新")
 
     def ask(
-        self, question: str, explain_results: bool = True
+        self, question: str, explain_results: bool = True, user_context: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """
         用自然语言查询数据库
@@ -134,14 +135,19 @@ class AskData:
                 result["explanation"] = self.llm.explain_results(
                     question, sql, result["formatted_results"]
                 )
+            
+            # 记录成功日志
+            log_qa(question, sql, True, user_context=user_context)
 
         except Exception as e:
             logger.error(f"查询失败: {e}")
             result["error"] = str(e)
+            # 记录失败日志
+            log_qa(question, result.get("sql"), False, str(e), user_context=user_context)
 
         return result
 
-    def ask_stream(self, question: str):
+    def ask_stream(self, question: str, user_context: Optional[Dict] = None):
         """
         流式查询数据库
         支持逐步返回: SQL -> 数据 -> 解释内容
@@ -188,10 +194,15 @@ class AskData:
                     yield {"type": "explanation_chunk", "content": chunk}
                 
                 yield {"type": "explanation_end", "content": ""}
+            
+            # 记录成功流式日志
+            log_qa(question, sql, True, user_context=user_context)
 
         except Exception as e:
             logger.error(f"流式查询失败: {e}")
             yield {"type": "error", "content": str(e)}
+            # 记录失败流式日志
+            log_qa(question, locals().get("sql"), False, str(e), user_context=user_context)
 
 
     def get_tables(self) -> list:

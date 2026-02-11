@@ -4,12 +4,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('send-btn');
     const examplesList = document.getElementById('examples-list');
     const clearChatBtn = document.getElementById('clear-chat');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeSettings = document.getElementById('close-settings');
+    const saveSettings = document.getElementById('save-settings');
+
+    // 默认大模型参数
+    let llmConfig = {
+        model: localStorage.getItem('llm_model') || 'qwen-max',
+        temperature: parseFloat(localStorage.getItem('llm_temp')) || 0.0,
+        max_tokens: parseInt(localStorage.getItem('llm_max_tokens')) || 2000
+    };
 
     // 自动调整输入框高度
     userInput.addEventListener('input', function () {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
     });
+
 
     // 加载示例问题
     async function loadExamples() {
@@ -38,7 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 发送消息
+    // 实用工具：延时函数
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
     // 发送消息 (流式)
     async function sendMessage() {
         const question = userInput.value.trim();
@@ -56,20 +70,33 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage(question, 'user');
 
         // 添加机器人容器
-        const botMsg = addMessage('', 'bot', true);
+        const botMsg = addMessage('', 'bot', false);
         const botBubble = botMsg.querySelector('.msg-bubble');
+        botBubble.style.display = 'none'; // 隐藏初始空气泡，直接显示卡片
+
+        // 立即展示第一步的标题和正在生成状态
+        const initialCard = ensureResultCard(botMsg, '');
+        const sqlSpan = initialCard.querySelector('.result-header span');
+        const originalSqlHtml = sqlSpan.innerHTML;
+        sqlSpan.innerHTML += ` <span class="header-status"><i class="fas fa-spinner fa-spin"></i> 正在生成...</span>`;
 
         let sql = '';
-        let resultCard = null;
+        let resultCard = initialCard; // 之后直接使用这个卡片
         let explanationText = '';
         let explanationDiv = null;
+        let expSpanRef = null;
+        let expHeaderOriginalHtml = '';
 
         try {
             const response = await fetch('/api/ask', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question })
+                body: JSON.stringify({
+                    question,
+                    config: llmConfig // 传递自定义配置
+                })
             });
+
 
             if (!response.ok) throw new Error('网络响应错误');
 
@@ -92,27 +119,63 @@ document.addEventListener('DOMContentLoaded', () => {
                     switch (event.type) {
                         case 'sql':
                             sql = event.content;
-                            // 移除加载动画，显示状态
-                            botBubble.innerHTML = `<div class="status-msg"><i class="fas fa-spinner fa-spin"></i> 正在执行 SQL...</div>`;
-                            ensureResultCard(botMsg, sql);
+                            // 更新 SQL 内容
+                            const sqlBlock = resultCard.querySelector('.sql-block');
+                            sqlBlock.textContent = sql;
+                            sqlBlock.classList.add('reveal');
+
+                            const sqlSpanUpdate = resultCard.querySelector('.result-header span');
+                            const baseSqlHtml = `<i class="fas fa-magic"></i> 自然语言转化为 SQL`;
+
+                            await sleep(500);
+                            sqlSpanUpdate.innerHTML = baseSqlHtml; // 任务完成，移除“正在生成”
                             break;
 
                         case 'data':
                             const { data, columns } = event.content;
-                            botBubble.innerHTML = `<div class="status-msg"><i class="fas fa-spinner fa-spin"></i> 数据已获取，正在生成解释...</div>`;
+                            const cardForData = botMsg.querySelector('.result-card');
                             updateResultCard(botMsg, columns, data);
+
+                            const dataHeader = cardForData.querySelector('.data-header');
+                            const dataSpan = dataHeader.querySelector('span');
+                            const originalDataHtml = dataSpan.innerHTML;
+                            dataSpan.innerHTML += ` <span class="header-status"><i class="fas fa-spinner fa-spin"></i> 正在检索...</span>`;
+
+                            await sleep(500); // 缩短延时
+                            // 移除检索提示，但保留带行数的标题
+                            dataSpan.innerHTML = ` <i class="fas fa-table"></i> 数据检索结果 (${data ? data.length : 0} 条)`;
                             break;
 
                         case 'explanation_start':
-                            botBubble.innerHTML = ''; // 清空状态消息，准备填入解释
-                            explanationDiv = document.createElement('div');
-                            explanationDiv.className = 'explanation-stream';
-                            botBubble.appendChild(explanationDiv);
+                            // 隐藏正在生成的提示泡泡，转而在卡片中展示
+                            botBubble.style.display = 'none';
+                            const cardForExp = botMsg.querySelector('.result-card');
+                            if (cardForExp) {
+                                const expHeader = cardForExp.querySelector('.explanation-header');
+                                explanationDiv = cardForExp.querySelector('.explanation-content');
+                                if (expHeader) {
+                                    expHeader.style.display = 'flex';
+                                    expHeader.classList.add('reveal');
+                                    expSpanRef = expHeader.querySelector('span');
+                                    expHeaderOriginalHtml = expSpanRef.innerHTML;
+                                    expSpanRef.innerHTML += ` <span class="header-status"><i class="fas fa-spinner fa-spin"></i> 正在洞察...</span>`;
+                                }
+                                if (explanationDiv) {
+                                    explanationDiv.style.display = 'block';
+                                    explanationDiv.innerHTML = '<div class="typing-sm"><span></span><span></span><span></span></div>';
+                                }
+                            }
                             break;
 
                         case 'explanation_chunk':
-                            explanationText += event.content;
-                            if (explanationDiv) explanationDiv.textContent = explanationText;
+                            if (explanationDiv) {
+                                if (explanationText === '') explanationDiv.innerHTML = ''; // 收到第一个块时移除打字动画
+                                explanationText += event.content;
+                                // 使用 marked 解析 markdown，并渲染为 HTML
+                                explanationDiv.innerHTML = marked.parse(explanationText);
+                                // 核心优化：即便数据已经积压，也强制以 30ms 的间隔输出，找回流式体感
+                                await sleep(30);
+                            }
                             scrollToBottom();
                             break;
 
@@ -121,6 +184,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             break;
                     }
                 }
+            }
+
+            // SSE 加载完毕后的终态处理
+            if (expSpanRef) {
+                expSpanRef.innerHTML = `<i class="fas fa-lightbulb"></i> 数据结果解释`;
             }
         } catch (error) {
             console.error('SSE Error:', error);
@@ -136,14 +204,18 @@ document.addEventListener('DOMContentLoaded', () => {
             msgDiv.appendChild(card);
         }
         card.innerHTML = `
-            <div class="result-header">
-                <span><i class="fas fa-code"></i> 生成的 SQL</span>
+            <div class="result-header reveal">
+                <span><i class="fas fa-magic"></i> 自然语言转化为 SQL</span>
             </div>
-            <div class="sql-block">${sql}</div>
+            <div class="sql-block ${sql ? 'reveal' : ''}" style="${sql ? '' : 'display:none'}">${sql}</div>
             <div class="result-header data-header" style="display:none">
-                <span><i class="fas fa-table"></i> 查询结果</span>
+                <span><i class="fas fa-table"></i> 数据检索结果</span>
             </div>
-            <div class="table-wrapper"></div>
+            <div class="table-wrapper reveal"></div>
+            <div class="result-header explanation-header" style="display:none">
+                <span><i class="fas fa-lightbulb"></i> 数据结果解释</span>
+            </div>
+            <div class="explanation-content" style="display:none"></div>
         `;
         return card;
     }
@@ -156,8 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const wrapper = card.querySelector('.table-wrapper');
 
         dataHeader.style.display = 'flex';
-        dataHeader.innerHTML = `<span><i class="fas fa-table"></i> 查询结果 (${data ? data.length : 0} 条)</span>`;
+        dataHeader.classList.add('reveal');
         wrapper.innerHTML = renderTable(columns, data);
+        wrapper.classList.add('reveal');
         scrollToBottom();
     }
 
@@ -288,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tableInfo.sample_data && tableInfo.sample_data.length > 0) {
                     const subTitle = document.createElement('div');
                     subTitle.className = 'explorer-sub-title';
-                    subTitle.innerHTML = '<i class="fas fa-table"></i> 示例数据 (Top 5)';
+                    subTitle.innerHTML = '<i class="fas fa-table"></i> 表数据';
                     colList.appendChild(subTitle);
 
                     const miniTable = document.createElement('div');
@@ -327,6 +400,47 @@ document.addEventListener('DOMContentLoaded', () => {
             explorer.innerHTML = '<p class="muted">无法加载库结构</p>';
         }
     }
+
+    // 设置弹窗逻辑
+    settingsBtn.onclick = () => {
+        document.getElementById('setting-model').value = llmConfig.model;
+        document.getElementById('setting-temp').value = llmConfig.temperature;
+        document.getElementById('temp-val').innerText = llmConfig.temperature;
+        document.getElementById('setting-max-tokens').value = llmConfig.max_tokens;
+        settingsModal.style.display = 'block';
+    };
+
+    closeSettings.onclick = () => {
+        settingsModal.style.display = 'none';
+    };
+
+    document.getElementById('setting-temp').oninput = function () {
+        document.getElementById('temp-val').innerText = this.value;
+    };
+
+    saveSettings.onclick = () => {
+        llmConfig.model = document.getElementById('setting-model').value;
+        llmConfig.temperature = parseFloat(document.getElementById('setting-temp').value);
+        llmConfig.max_tokens = parseInt(document.getElementById('setting-max-tokens').value);
+
+        localStorage.setItem('llm_model', llmConfig.model);
+        localStorage.setItem('llm_temp', llmConfig.temperature);
+        localStorage.setItem('llm_max_tokens', llmConfig.max_tokens);
+
+        settingsModal.style.display = 'none';
+
+        const tip = document.createElement('div');
+        tip.style = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--primary); color:white; padding:10px 20px; border-radius:30px; z-index:1000; box-shadow:0 4px 15px rgba(0,0,0,0.3); font-weight:600; font-size: 0.875rem;";
+        tip.innerText = "✅ 设置已保存至本地";
+        document.body.appendChild(tip);
+        setTimeout(() => tip.remove(), 2000);
+    };
+
+    window.onclick = (event) => {
+        if (event.target == settingsModal) {
+            settingsModal.style.display = 'none';
+        }
+    };
 
     // 初始化加载
     loadExamples();

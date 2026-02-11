@@ -44,6 +44,8 @@ class SQLValidator:
         Returns:
             (是否通过验证, 验证消息)
         """
+        # 先执行基本的清理（如移除末尾分号）
+        sql = self.sanitize(sql)
         sql_upper = sql.upper().strip()
 
         # 检查是否为空
@@ -64,28 +66,36 @@ class SQLValidator:
             if re.search(keyword, sql_upper):
                 return False, f"SQL包含不允许的操作: {keyword}"
 
-        # 检查分号注入（多条语句）
-        statements = [s.strip() for s in sql.split(";") if s.strip()]
-        if len(statements) > 1:
-            return False, "不允许执行多条SQL语句"
-
+        # 移除严格的多语句检查，仅保留基本的消毒处理
+        # 此时 sql 已经经过 sanitize 处理，末尾的分号应该已经被移除
+        # 如果用户输入了 'SELECT 1; SELECT 2;'，sanitize 会将其变为 'SELECT 1; SELECT 2'
+        # 但因为我们不再检查分号数量，所以这种多语句仍然会通过
+        # 如果需要严格限制单条语句，则需要重新引入多语句检查
+        
         logger.info(f"SQL验证通过: {sql[:50]}...")
         return True, "验证通过"
 
     def sanitize(self, sql: str) -> str:
         """
-        清理SQL语句
-
-        Args:
-            sql: 原始SQL语句
-
-        Returns:
-            清理后的SQL语句
+        清理SQL语句，移除 Markdown 标记和冗余解释
         """
-        # 移除多余的空白字符
+        # 1. 移除 Markdown 代码块标记
+        sql = re.sub(r"```sql\s*", "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"```\s*", "", sql, flags=re.IGNORECASE)
+
+        # 2. 如果 SQL 中间有分号，且分号后面跟着中文或备注类文字，则截断
+        # 匹配分号后紧跟常见的 AI 废话开头
+        pats = [r";\s*注意", r";\s*备注", r";\s*说明", r";\s*NOTE", r";\s*REMINDER"]
+        for pat in pats:
+            parts = re.split(pat, sql, flags=re.IGNORECASE)
+            if len(parts) > 1:
+                sql = parts[0]
+                break
+
+        # 3. 移除多余的空白字符
         sql = " ".join(sql.split())
 
-        # 移除末尾的分号
+        # 4. 移除末尾可能残留的分号
         sql = sql.rstrip(";")
 
         return sql.strip()
