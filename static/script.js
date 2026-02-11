@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="result-header reveal">
                 <span><i class="fas fa-magic"></i> 自然语言转化为 SQL</span>
             </div>
-            <div class="sql-block ${sql ? 'reveal' : ''}" style="${sql ? '' : 'display:none'}">${sql}</div>
+            <div class="sql-block ${sql ? 'reveal' : ''}" style="${sql ? '' : ''}">${sql}</div>
             <div class="result-header data-header" style="display:none">
                 <span><i class="fas fa-table"></i> 数据检索结果</span>
             </div>
