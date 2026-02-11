@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能问数 - AI 数据库分析专家</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-database"></i>
+                    <span>智能问数</span>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="section-title">示例查询</div>
+                <div id="examples-list" class="examples-list">
+                    <!-- 动态加载示例 -->
+                    <div class="example-skeleton"></div>
+                    <div class="example-skeleton"></div>
+                    <div class="example-skeleton"></div>
+                </div>
+
+                <div class="sidebar-footer">
+                    <div id="db-status" class="db-status">
+                        <span class="status-indicator"></span>
+                        <span class="status-text">数据库已连接</span>
+                    </div>
+                    <div class="divider" style="margin: 1rem 0 0.75rem 0;"></div>
+                    <div class="section-title" style="margin-bottom: 0.5rem;">数据库表结构</div>
+                    <div id="db-explorer" class="db-explorer">
+                        <!-- 动态加载表结构 -->
+                        <div class="explorer-skeleton"></div>
+                        <div class="explorer-skeleton"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主界面 -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="breadcrumb">
+                    <span class="muted">项目 / </span>
+                    <span class="current">数据库对话</span>
+                </div>
+                <div class="user-actions">
+                    <button id="clear-chat" class="clear-btn">
+                        <i class="fas fa-trash-alt"></i>
+                        <span>清空对话</span>
+                    </button>
+                </div>
+            </header>
+
+            <div id="chat-container" class="chat-container">
+                <div class="chat-welcome">
+                    <div class="welcome-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h1>欢迎使用智能问数</h1>
+                    <p>你可以直接用自然语言向我提问，我会为你生成 SQL 并查询数据库。</p>
+                </div>
+                <!-- 聊天消息展示区 -->
+            </div>
+
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea id="user-input" placeholder="请输入你的问题，例如：查询去年销售额最高的产品" rows="1"></textarea>
+                    <button id="send-btn" class="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="input-footer">
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 结果详情模态框 -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>查询详情</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="detail-section">
+                    <label>生成的 SQL</label>
+                    <pre><code id="detail-sql"></code></pre>
+                </div>
+                <div class="detail-section">
+                    <label>原始数据 (JSON)</label>
+                    <pre><code id="detail-data"></code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
