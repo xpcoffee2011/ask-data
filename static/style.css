@@ -694,6 +694,16 @@ tr:hover {
     font-family: inherit;
     font-size: 0.9375rem;
     max-height: 150px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE 10+ */
+}
+
+#user-input::-webkit-scrollbar {
+    display: none;
+    /* WebKit */
 }
 
 .send-btn {
