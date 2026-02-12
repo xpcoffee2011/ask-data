@@ -37,6 +37,10 @@ class SchemaAnalyzer:
             包含表结构信息的字典
         """
         columns = self.inspector.get_columns(table_name)
+        # 将 SQLAlchemy 类型对象转换为字符串，方便 JSON 序列化和前端展示
+        for col in columns:
+            col['type'] = str(col['type'])
+            
         primary_keys = self.inspector.get_pk_constraint(table_name)
         foreign_keys = self.inspector.get_foreign_keys(table_name)
         indexes = self.inspector.get_indexes(table_name)

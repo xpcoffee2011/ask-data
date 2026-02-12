@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     expHeader.classList.add('reveal');
                                     expSpanRef = expHeader.querySelector('span');
                                     expHeaderOriginalHtml = expSpanRef.innerHTML;
-                                    expSpanRef.innerHTML += ` <span class="header-status"><i class="fas fa-spinner fa-spin"></i> 正在洞察...</span>`;
+                                    expSpanRef.innerHTML += ` <span class="header-status"><i class="fas fa-spinner fa-spin"></i> 正在生成...</span>`;
                                 }
                                 if (explanationDiv) {
                                     explanationDiv.style.display = 'block';
