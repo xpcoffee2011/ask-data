@@ -51,6 +51,7 @@ class QwenClient:
             )
 
             content = response.choices[0].message.content
+            logger.info(f"Qwen API 响应内容: {content}")
             return content.strip()
 
         except Exception as e:
@@ -75,9 +76,15 @@ class QwenClient:
                 stream=True,
             )
 
+            full_content = []
             for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+                    c = chunk.choices[0].delta.content
+                    full_content.append(c)
+                    yield c
+            
+            if full_content:
+                logger.info(f"Qwen API 流式响应完整内容: {''.join(full_content)}")
 
         except Exception as e:
             logger.error(f"Qwen 流式调用失败: {e}")
