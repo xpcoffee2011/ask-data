@@ -180,7 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             break;
 
                         case 'error':
+                            botBubble.style.display = 'block';
                             botBubble.innerHTML = `<div class="error-msg">❌ 出错了: ${event.content}</div>`;
+                            // 移除加载状态
+                            resultCard.querySelectorAll('.header-status').forEach(s => s.remove());
+                            // 如果还没有生成 SQL，隐藏结果卡显示
+                            if (!sql) {
+                                resultCard.style.display = 'none';
+                            }
                             break;
                     }
                 }
@@ -192,7 +199,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('SSE Error:', error);
+            botBubble.style.display = 'block';
             botBubble.innerHTML = `<div class="error-msg">❌ 请求失败: ${error.message}</div>`;
+            if (resultCard) {
+                resultCard.querySelectorAll('.header-status').forEach(s => s.remove());
+                if (!sql) resultCard.style.display = 'none';
+            }
         }
     }
 

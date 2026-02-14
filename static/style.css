@@ -913,3 +913,16 @@ tr:hover {
     overflow-x: auto;
     font-size: 0.8125rem;
 }
+
+/* Error styles */
+.error-msg {
+    color: var(--danger);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.header-status i {
+    font-size: 0.75rem;
+}
