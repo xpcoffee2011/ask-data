@@ -84,7 +84,7 @@ class QwenClient:
                     yield c
             
             if full_content:
-                logger.info(f"Qwen API 流式响应完整内容: {''.join(full_content)}")
+                logger.info(f"Qwen API 流式响应完整内容 : {''.join(full_content)}")
 
         except Exception as e:
             logger.error(f"Qwen 流式调用失败: {e}")
